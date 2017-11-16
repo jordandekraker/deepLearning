@@ -1,7 +1,7 @@
 clear; close all;
 
 %% test input
-img = double(imread('SmileyFace8bitGray.png'));
+img = double(imread('../SmileyFace8bitGray.png'));
 % img = imresize(img,1/2);
 img = img/max(img(:));
 % figure; imagesc(img);
