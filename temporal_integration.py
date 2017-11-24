@@ -7,8 +7,8 @@ Created on Mon Nov 20 14:20:54 2017
 """
 import cv2
 import numpy as np
-from keras.layers import Input, Dense
-from keras.models import Model
+from keras.layers import Activation, Dense
+from keras.models import Sequential
 from fixeye_saccade import fixeye
 
 image = cv2.imread("./SmileyFace8bitGray.png",cv2.IMREAD_GRAYSCALE)
@@ -16,24 +16,19 @@ image = image.astype(float)
 
 # initial
 fix = [0.5, 0.5] # starting pt
-img1 = fixeye(image,fix)
-sz = img1.shape
-sz2 = np.add(sz,2)
-inputs = Input(shape=sz2)
-x = Dense(64, activation='relu')(inputs)
-x = Dense(64, activation='relu')(x)
-predictions = Dense(1, activation='relu')(x)
+img1 = np.concatenate(([[fixeye(image,fix)],[fix]]), axis=1)
+img1 = img1
 
-# This creates a model that includes
-# the Input layer and three Dense layers
-model = Model(inputs=inputs, outputs=predictions)
-model.compile(optimizer='SGD',
+model = Sequential()
+model.add(Dense(1000, activation='tanh', input_shape=(None,img1.shape[1])))
+model.add(Dense(10002, activation='tanh'))
+model.compile(optimizer='rmsprop',
               loss='mean_squared_error')
 
 for iters in range(10):
     fix = np.random.uniform(0.1, 0.9, 2)
     img2 = fixeye(image,fix)
-    model.fit(np.concatenate((img1, fix)), img2)  # starts training
+    model.fit(img1, img2, epochs=1, batch_size=1)  # starts training
     img1 = img2
          
     
