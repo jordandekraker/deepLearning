@@ -19,9 +19,11 @@ outsz = [100,100]
 outsz1d = outsz[0]*outsz[1]
 
 #generate training data
-training_steps = 2000;
+training_steps = 1000;
+test_steps = 10;
 trainimgs = np.zeros([outsz1d*2,training_steps])
-for n in range(0,training_steps):
+testimgs = np.zeros([outsz1d*2,training_steps])
+for n in range(0,training_steps+test_steps):
     fix = np.random.normal(0.5,0.1,2)
     fix[fix>1] = 1
     fix[fix<0] = 0
@@ -29,12 +31,16 @@ for n in range(0,training_steps):
     img2 = fixembed(fix)
     #fig, ax = plt.subplots()
     #ax.imshow(img2)
-    trainimgs[:,n] = np.concatenate((img1, img2))
+    if n < training_steps:
+        trainimgs[:,n] = np.concatenate((img1, img2))
+    else:
+        testimgs[:,n-training_steps] = np.concatenate((img1, img2))
 
-fig, ax = plt.subplots()
-ax.imshow(np.reshape(trainimgs[0:outsz1d,n],outsz))
-fig, ax = plt.subplots()
-ax.imshow(np.reshape(trainimgs[outsz1d:outsz1d*2,n],outsz))
+
+#fig, ax = plt.subplots()
+#ax.imshow(np.reshape(trainimgs[0:outsz1d,n],outsz))
+#fig, ax = plt.subplots()
+#ax.imshow(np.reshape(trainimgs[outsz1d:outsz1d*2,n],outsz))
 
 
 
@@ -43,12 +49,12 @@ ax.imshow(np.reshape(trainimgs[outsz1d:outsz1d*2,n],outsz))
 # Training Parameters
 learning_rate = 0.001
 batch_size = 1
-display_step = 200
+display_step = 100
 
 # Network Parameters
 num_input = outsz1d*2 # MNIST data input (img shape: 28*28)
-timesteps = 10
-num_hidden = 10000 # hidden layer num of features
+timesteps = 1
+num_hidden = 1000 # hidden layer num of features
 num_output = outsz1d
 
 # tf Graph input
@@ -106,12 +112,18 @@ with tf.Session() as sess:
         
         # Run optimization op (backprop)
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
-        if step % display_step == 0 or step == 1:
+        if step % display_step == 0 or step <= 10:
             # Calculate batch loss
             loss = sess.run([loss_op], feed_dict={X: batch_x,
                                                                  Y: batch_y})
             print("Step " + str(step) + ", Minibatch Loss= " + str(loss))
 
     print("Optimization Finished!")
-
-
+    for n in range(1,test_steps):
+        xtest = testimgs[0:outsz1d*2,step]
+        xtest = xtest.reshape((1, 1, num_input))
+        ytest = sess.run(LSTMoutput, feed_dict={X: xtest})
+        fig, ax = plt.subplots()
+        ax.imshow(np.reshape(testimgs[outsz1d:outsz1d*2,n],outsz))
+        fig, ax = plt.subplots()
+        ax.imshow(np.reshape(ytest[0:outsz1d,n],outsz))
