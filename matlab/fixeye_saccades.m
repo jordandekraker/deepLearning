@@ -15,7 +15,7 @@ end
 stepsize = 1;
 lambda = .1; %L2 regularization
 decay = 4000;
-iters = 100;
+iters = 1000;
 nneurons = [szn+2 1000 1000]; %first layer has size: image size + fixation coords + bias term
 NNbias = 0;
 nfigs = 10; %how many intermeidate figures to generate
@@ -43,10 +43,10 @@ while n<=iters
     % make a move
 %     fix = testfixes(rem(n,ntest)+1,:); 
 %     img = testimges(rem(n,ntest)+1,:);
-    if rand(1) < 0.1
-    fix = rand([1,2]);
+%     if rand(1) < 0.1
+    fix = round(rand([1,2]),2);
     img = saccade(origimg,fix);
-    end
+%     end
     NNnew = [img,fix];
     
     % backprop based on the results of the move
