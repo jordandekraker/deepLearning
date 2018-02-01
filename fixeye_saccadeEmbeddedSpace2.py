@@ -23,11 +23,12 @@ training_steps = 1000;
 test_steps = 10;
 trainimgs = np.zeros([outsz1d*2,training_steps])
 testimgs = np.zeros([outsz1d*2,training_steps])
+fix = np.array([0.5,0.5])
 for n in range(0,training_steps+test_steps):
+    img1 = fixeye(image,fix)
     fix = np.random.normal(0.5,0.1,2)
     fix[fix>1] = 1
     fix[fix<0] = 0
-    img1 = fixeye(image,fix)
     img2 = fixembed(fix)
     #fig, ax = plt.subplots()
     #ax.imshow(img2)
@@ -119,6 +120,7 @@ with tf.Session() as sess:
             print("Step " + str(step) + ", Minibatch Loss= " + str(loss))
 
     print("Optimization Finished!")
+    
     for n in range(1,test_steps):
         xtest = testimgs[0:outsz1d*2,step]
         xtest = xtest.reshape((1, 1, num_input))
@@ -126,4 +128,4 @@ with tf.Session() as sess:
         fig, ax = plt.subplots()
         ax.imshow(np.reshape(testimgs[outsz1d:outsz1d*2,n],outsz))
         fig, ax = plt.subplots()
-        ax.imshow(np.reshape(ytest[0:outsz1d,n],outsz))
+        ax.imshow(np.reshape(ytest[0,:],outsz))
