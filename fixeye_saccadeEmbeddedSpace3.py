@@ -15,7 +15,7 @@ from fixeye_saccade import fixeye,fixembed
 
 image = cv2.imread("./SmileyFace8bitGray.png",cv2.IMREAD_GRAYSCALE)
 image = image.astype(float)
-outsz = [100,100]
+outsz = [10,10]
 outsz1d = outsz[0]*outsz[1]
 
 #generate training data
@@ -38,8 +38,8 @@ for n in range(0,training_steps+testing_steps):
         testimgs[:,n-training_steps] = np.concatenate((img1, img2))
 
 #n=5
-#fig, ax = plt.subplots()
-#ax.imshow(np.reshape(testimgs[0:outsz1d,n],outsz))
+fig, ax = plt.subplots()
+ax.imshow(np.reshape(testimgs[0:outsz1d,n],outsz))
 #fig, ax = plt.subplots()
 #ax.imshow(np.reshape(testimgs[outsz1d:outsz1d*2,n],outsz))
 

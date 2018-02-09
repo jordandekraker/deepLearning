@@ -9,12 +9,13 @@ import cv2
 import numpy as np
 import scipy.misc
 from scipy.ndimage.filters import gaussian_filter
+import matplotlib.pyplot as plt
 
 
 #image = cv2.imread("./SmileyFace8bitGray.png",cv2.IMREAD_GRAYSCALE)
 #image = image.astype(float)
 
-outsz = [100,100];
+outsz = [10,10];
 
         
 # fisheye filter
@@ -35,8 +36,8 @@ def fixeye(image,fix):
     dst = dst.T
 
     dst = scipy.misc.imresize(dst,outsz)
-    dst = dst - np.mean(dst)
-    dst = dst / np.std(dst)
+#    dst = dst - np.mean(dst)
+#    dst = dst / np.std(dst)
     dst = np.reshape(dst,[outsz[0]*outsz[1]]) #make 1D
     return (dst)
 
