@@ -46,9 +46,9 @@ def fixembed(fix):
     fix = fix.astype(np.int64)
     img2 = np.zeros(outsz)
     img2[fix[1],fix[0]] = 1
-    img2 = gaussian_filter(img2,50, mode='constant', cval=0.0) # sigma chosen arbitrarily.. related to focal length?
-    img2 = img2 - np.mean(img2)
-    img2 = img2 / np.std(img2)
+#    img2 = gaussian_filter(img2,50, mode='constant', cval=0.0) # sigma chosen arbitrarily.. related to focal length?
+#    img2 = img2 - np.mean(img2)
+#    img2 = img2 / np.std(img2)
     img2 = np.reshape(img2,[outsz[0]*outsz[1]]) #make 1D
     return (img2)
 
