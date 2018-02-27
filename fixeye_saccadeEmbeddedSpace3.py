@@ -15,7 +15,7 @@ from fixeye_saccade import fixeye,fixembed
 
 image = cv2.imread("./SmileyFace8bitGray.png",cv2.IMREAD_GRAYSCALE)
 image = image.astype(float)
-outsz = [100,100]
+outsz = [10,10]
 outsz1d = outsz[0]*outsz[1]
 
 #generate training data
@@ -37,11 +37,11 @@ for n in range(0,training_steps+testing_steps):
     else:
         testimgs[:,n-training_steps] = np.concatenate((img1, img2))
 
-n=5
+#n=5
 fig, ax = plt.subplots()
 ax.imshow(np.reshape(testimgs[0:outsz1d,n],outsz))
-fig, ax = plt.subplots()
-ax.imshow(np.reshape(testimgs[outsz1d:outsz1d*2,n],outsz))
+#fig, ax = plt.subplots()
+#ax.imshow(np.reshape(testimgs[outsz1d:outsz1d*2,n],outsz))
 
 
 
@@ -54,7 +54,7 @@ display_step = 100
 
 # Network Parameters
 num_input = outsz1d*2 # MNIST data input (img shape: 28*28)
-timesteps = 1
+timesteps = 2
 num_hidden = 1000 # hidden layer num of features
 num_output = outsz1d
 
@@ -106,7 +106,6 @@ with tf.Session() as sess:
 
     for n in range(timesteps, training_steps-1):
         batch_x = trainimgs[0:outsz1d*2,n-timesteps:n]
-        #batch_x = batch_x.T
         batch_x = batch_x.reshape((batch_size, timesteps, num_input))
         batch_y = trainimgs[0:outsz1d,n+1]
         batch_y = batch_y.reshape((batch_size, num_output))
@@ -115,16 +114,15 @@ with tf.Session() as sess:
         sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
         if n % display_step == 0 or n <= 10:
             # Calculate batch loss
-            loss = sess.run([loss_op], feed_dict={X: batch_x,
-                                                                 Y: batch_y})
+            loss = sess.run([loss_op], feed_dict={X: batch_x, Y: batch_y})
             print("Training iteration " + str(n) + ", MSerror= " + str(loss))
 
-    print("Optimization Finished!")
+    print("Training Finished!")
     
-    for n in range(1,testing_steps):
-        xtest = testimgs[:,n]
-        xtest = xtest.reshape((1, 1, num_input))
-        ytest = sess.run(LSTMoutput, feed_dict={X: xtest})
+    for n in range(timesteps,testing_steps):
+        batch_x = testimgs[0:outsz1d*2,n-timesteps:n]
+        batch_x = batch_x.reshape((batch_size, timesteps, num_input))
+        ytest = sess.run(LSTMoutput, feed_dict={X: batch_x})
         fig, ax = plt.subplots()
         ax.imshow(np.reshape(testimgs[outsz1d:outsz1d*2,n],outsz))
         fig, ax = plt.subplots()
