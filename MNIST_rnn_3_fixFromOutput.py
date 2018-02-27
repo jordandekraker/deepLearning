@@ -27,8 +27,8 @@ handle 28 sequences of 28 steps for every sample.
 
 # Training Parameters
 learning_rate = 0.001
-training_steps = 1000
-batch_size = 10
+training_steps = 1000000
+batch_size = 1
 display_step = 200
 
 # Network Parameters
@@ -36,18 +36,18 @@ num_input = 200 # MNIST data input (img shape: 28*28); new shape 10*10
 timesteps = 10 # timesteps
 
 num_hidden = 500 # hidden layer num of features
-num_classes = 10 # MNIST total classes (0-9 digits)
+num_outputs = 110 # MNIST total classes (0-9 digits) + 100 next fixation
 
 # tf Graph input
 X = tf.placeholder("float", [None, timesteps, num_input])
-Y = tf.placeholder("float", [None, num_classes])
+Y = tf.placeholder("float", [None, num_outputs])
 
 # Define weights
 weights = {
-    'out': tf.Variable(tf.random_normal([num_hidden, num_classes]))
+    'out': tf.Variable(tf.random_normal([num_hidden, num_outputs]))
 }
 biases = {
-    'out': tf.Variable(tf.random_normal([num_classes]))
+    'out': tf.Variable(tf.random_normal([num_outputs]))
 }
 
 
@@ -69,8 +69,11 @@ def RNN(x, weights, biases):
     # Linear activation, using rnn inner loop last output
     return tf.matmul(outputs[-1], weights['out']) + biases['out']
 
-logits = RNN(X, weights, biases)
+RNNout = RNN(X, weights, biases)
+logits = RNNout[-1,0:9]
 prediction = tf.nn.softmax(logits)
+newfix = tf.nn.softmax(RNNout[-1,10:])
+newfixind = tf.argmax(newfix, 1)
 
 # Define loss and optimizer
 loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
@@ -86,44 +89,47 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 init = tf.global_variables_initializer()
 batch_x = np.empty([batch_size, timesteps, num_input])
 # Start training
-sess = tf.Session()
+with tf.Session() as sess:
 
-# Run the initializer
-sess.run(init)
-for step in range(1,training_steps):
-    batch_x_old, batch_y = mnist.train.next_batch(batch_size)
-    # Apply fisheye filter and reshape data
-    for n in range(batch_size):
+    # Run the initializer
+    sess.run(init)
+    for step in range(1,training_steps):
+        batch_x_old, batch_y = mnist.train.next_batch(batch_size)
+        batch_y = np.concatenate((batch_y,np.zeros([1,100]),2))
+        # Apply fisheye filter and reshape data
+        for n in range(batch_size):
+            for f in range(timesteps):
+                img = batch_x_old[n,:]
+                img = img.reshape(28,28)
+                fix = np.zeros(100)
+                ind = sess.run([newfixind], feed_dict={X: batch_x,
+                                                       Y: batch_y})
+                fix[ind] = 1;
+                batch_x[n,f,range(num_input)] = np.concatenate((fe.fixeye(img,fix),fix))
+        # batch_x = batch_x.reshape((batch_size, timesteps, num_input))
+        # Run optimization op (backprop)
+        sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
+        if step % display_step == 0 or step == 1:
+            # Calculate batch loss and accuracy
+            loss, acc = sess.run([loss_op, accuracy], feed_dict={X: batch_x,
+                                                                 Y: batch_y})
+            print("Step " + str(step) + ", Minibatch Loss= " + \
+                  "{:.4f}".format(loss) + ", Training Accuracy= " + \
+                  "{:.3f}".format(acc))
+
+    print("Optimization Finished!")
+
+    # Calculate accuracy for 128 mnist test images
+    test_len = 128
+    test_data_old = mnist.test.images[:test_len]
+    test_data = np.empty([test_len, timesteps, num_input])
+    for n in range(test_len):
         for f in range(timesteps):
-            img = batch_x_old[n,:]
+            img = test_data_old[n,:]
             img = img.reshape(28,28)
             fix = np.random.rand(2)
-            batch_x[n,f,range(num_input)] = np.concatenate((fe.fixeye(img,fix),fe.fixembed(fix)))
-    # batch_x = batch_x.reshape((batch_size, timesteps, num_input))
-    # Run optimization op (backprop)
+            test_data[n,f,range(num_input)] = np.concatenate((fe.fixeye(img,fix),fe.fixembed(fix)))   
     
-    sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
-    if step % display_step == 0 or step == 1:
-        # Calculate batch loss and accuracy
-        loss, acc = sess.run([loss_op, accuracy], feed_dict={X: batch_x,
-                                                             Y: batch_y})
-        print("Step " + str(step) + ", Minibatch Loss= " + \
-              "{:.4f}".format(loss) + ", Training Accuracy= " + \
-              "{:.3f}".format(acc))
-print("Optimization Finished!")
-
-# Calculate accuracy for 128 mnist test images
-test_len = 128
-test_data_old = mnist.test.images[:test_len]
-test_data = np.empty([test_len, timesteps, num_input])
-for n in range(test_len):
-    for f in range(timesteps):
-        img = test_data_old[n,:]
-        img = img.reshape(28,28)
-        fix = np.random.rand(2)
-        test_data[n,f,range(num_input)] = np.concatenate((fe.fixeye(img,fix),fe.fixembed(fix)))   
-
-test_label = mnist.test.labels[:test_len]
-print("Testing Accuracy:", \
-    sess.run(accuracy, feed_dict={X: test_data, Y: test_label}))
-ww = sess.run(weights, feed_dict={X: test_data, Y: test_label}) # example of how to probe model
+    test_label = mnist.test.labels[:test_len]
+    print("Testing Accuracy:", \
+        sess.run(accuracy, feed_dict={X: test_data, Y: test_label}))

@@ -20,6 +20,7 @@ outsz = [10,10];
         
 # fisheye filter
 def fixeye(image,fix):
+    fix = np.reshape(fix,outsz)
     #params
     distCoeff = np.array([[0.01], [0.01], [0], [0]])
     fix = np.multiply(fix,image.shape)

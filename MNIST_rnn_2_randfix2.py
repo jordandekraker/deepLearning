@@ -43,13 +43,8 @@ X = tf.placeholder("float", [None, timesteps, num_input])
 Y = tf.placeholder("float", [None, num_classes])
 
 # Define weights
-weights = {
-    'out': tf.Variable(tf.random_normal([num_hidden, num_classes]))
-}
-biases = {
-    'out': tf.Variable(tf.random_normal([num_classes]))
-}
-
+weights = tf.Variable(tf.random_normal([num_hidden, num_classes]))
+biases = tf.Variable(tf.random_normal([num_classes]))
 
 def RNN(x, weights, biases):
 
