@@ -14,18 +14,17 @@ hidden unit capacities.
 """
 
 from __future__ import print_function
-import fixeye_saccade as fe
-import tensorflow as tf
-from tensorflow.contrib import rnn
-import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
+import fixeye_saccade as fe
+import matplotlib.pyplot as plt
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 # tf Graph input
-X = tf.placeholder("float", [1,200]) #200 inputs
+X = tf.placeholder("float", [1,10,200]) #200 inputs
 Y = tf.placeholder("float", [1,10]) #10 output calsses
 
 # initialize tensorflow model trainable variables
@@ -33,26 +32,24 @@ weights = tf.Variable(tf.random_normal([200, 110])) # 200 input units; 110 outpu
 biases = tf.Variable(tf.random_normal([110])) #110 outputs
 
 # initialize hard coded variables                 
-fix = np.zeros([1,100]) 
-fix[0,55] = 1; # initial fixation location
+fix = np.zeros([1,10,100]) 
+fix[0,0,55] = 1; # initial fixation location
 loss = np.zeros([10]) # loss value for each 
 acc_MNIST = np.zeros([10]) # 10 MNIST outputs
 nfixind = np.zeros([10]) # 10 MNIST outputs
 memstate = (tf.zeros([1,200]),)*2 # ititial hidden layer c_state and m_state
-FEimg = (tf.zeros([1,100])) # fix image size
+FEimg = (np.zeros([1,10,100])) # fix image size
 
-def RNN(x, weights, biases):
-    lstm_cell = rnn.BasicLSTMCell(200, state_is_tuple=True) # 200 hidden units
-    outputs, newmemstate = lstm_cell(tf.reshape(x,[1,200]),memstate)
-    # Linear activation, using rnn inner loop last output
-    RNNout = tf.matmul(outputs, weights) + biases
-    return RNNout, newmemstate
+#build the network
+lstm_cell = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, 
+    reuse=tf.get_variable_scope().reuse) 
+lstm_cell_single = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, 
+    reuse=tf.get_variable_scope().reuse) 
+oseq, memstateseq = tf.nn.dynamic_rnn(lstm_cell, X, dtype=tf.float32)
+outseq = tf.matmul(oseq[-1], weights) + biases
 
-RNNout,newmemstate = RNN(X, weights, biases)
-memstate = newmemstate
-logits = RNNout[0,:10]
+logits = outseq[0,:10]
 prediction = tf.nn.softmax(logits)
-newfixind = tf.argmax(RNNout[0,10:])
 
 # Define loss and optimizer for MNIST
 loss_MNIST = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
@@ -66,7 +63,7 @@ train_MNIST = optimizer_MNIST.minimize(loss_MNIST)
 #optimizer_FIX = tf.train.GradientDescentOptimizer(learning_rate=0.001)
 #train_FIX = optimizer_FIX.minimize(loss_FIX, grad_loss = grads_MNIST)
 
-# Evaluate model (with test logits, for dropout to be disabled)
+# Evaluate model with MNIST (with test logits, for dropout to be disabled)
 correct_pred = tf.equal(tf.argmax(prediction), tf.argmax(Y))
 accuracy_MNIST = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
@@ -79,25 +76,31 @@ sess.run(init)
 for iters in range(10000): # iterations
     MNISTimg, MNISTcat = mnist.train.next_batch(1)
     MNISTimg = MNISTimg+0.001 # otherwise can lead to cropping problems in fixeye
-    n=0
-    while n<10:
-        # Apply fisheye filter and reshape data
-        FEimg = fe.fixeye(MNISTimg,fix)
-        # Run optimization op (backprop)
-        sess.run(train_MNIST, feed_dict={X: np.concatenate((FEimg,fix),1), 
-            Y: MNISTcat})
-        # Return values of interest
-        loss[n], acc_MNIST[n], nfixind[n] = sess.run([loss_MNIST,accuracy_MNIST,newfixind], 
-            feed_dict={X: np.concatenate((FEimg,fix),1), Y: MNISTcat})
-        # Return new fixation
-        fix = np.zeros([1,100])
-        fix[0,nfixind[n].astype(int)] = 1
-        n+=1
-#    sess.run(train_FIX, feed_dict={X: np.concatenate((FEimg,fix),1)})
+    for n in range(10):
+        # get new series of fixations bet feeding forward for n fixations
+        FEimg[0,n,:] = fe.fixeye(MNISTimg,fix[0,n,:].reshape([1,100]))
+        osingle, newmemstate = lstm_cell_single(np.concatenate(
+                (FEimg[0,n,:].reshape([1,100]),fix[0,n,:].reshape([1,100])),1), memstate)
+        outsingle = tf.matmul(osingle, weights) + biases
+        memstate = newmemstate
+        newfixind = tf.argmax(outsingle[0,10:])
+        m=n+1
+        if n==9:
+            m=0
+        fix[0,m,:] = np.zeros([1,100])
+        fix[0,m,nfixind[n].astype(int)] = 1
+        
+    # now train using data from those n fixations
+    sess.run(train_MNIST, 
+        feed_dict={X: np.concatenate((FEimg,fix),1), Y: MNISTcat})
+    #    sess.run(train_FIX, feed_dict={X: np.concatenate((FEimg,fix),1)})
+
     
     
     if iters % 200 == 0 or iters == 0:
-        # Calculate batch loss and accuracy
+        # Calculate seq loss and accuracy and see fixations used
+        loss[n], acc_MNIST[n], nfixind[n] = sess.run([loss_MNIST,accuracy_MNIST,
+            newfixind], feed_dict={X: np.concatenate((FEimg,fix),1), Y: MNISTcat})
         print("Iteration " + str(iters) + ", loss_MNIST= " + \
               "{:.4f}".format(np.mean(loss)) + ", Accuracy " + \
               "{:.4f}".format(np.mean(acc_MNIST)) + ", fixation sequence was:")
@@ -123,12 +126,13 @@ for t in range(test_len):
         testy[0,:] = test_label[n,:]
         FEimg = fe.fixeye(testx,fix)
         # Return values of interest
-        loss[n], acc_MNIST[n], nfixind[n] = sess.run([loss_MNIST,accuracy_MNIST,newfixind], 
-            feed_dict={X: np.concatenate((FEimg,fix),1), Y: testy})
+        loss[n], acc_MNIST[n], nfixind[n] = sess.run([loss_MNIST,accuracy_MNIST, 
+            newfixind], feed_dict={X: np.concatenate((FEimg,fix),1), Y: testy})
         # Return new fixation
         fix = np.zeros([1,100])
         fix[0,nfixind[n].astype(int)] = 1
         n+=1
     finalaccuracy[t] = acc_MNIST[n-1]
-print("Testing Accuracy:", "{:.4f}".format(np.mean(finalaccuracy)), ", final fixation sequence was:")
+print("Testing Accuracy:", "{:.4f}".format(np.mean(finalaccuracy)), 
+      ", final fixation sequence was:")
 print(nfixind.astype(int))

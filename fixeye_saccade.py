@@ -15,15 +15,24 @@ import matplotlib.pyplot as plt
 #image = cv2.imread("./SmileyFace8bitGray.png",cv2.IMREAD_GRAYSCALE)
 #image = image.astype(float)
 
-outsz = [10,10];
 
         
 # fisheye filter
 def fixeye(image,fix):
-    fix = np.reshape(fix,outsz)
+    outsz = [10,10]
+    #make square
+    if np.any(np.isin(image.shape,1)):
+        image = np.reshape(image,[np.sqrt(image.size).astype(int),np.sqrt(image.size).astype(int)])
+    if np.any(np.isin(fix.shape,1)):
+        fix = np.reshape(fix,[np.sqrt(fix.size).astype(int),np.sqrt(fix.size).astype(int)])
     #params
     distCoeff = np.array([[0.01], [0.01], [0], [0]])
-    fix = np.multiply(fix,image.shape)
+    fix = np.where(fix==1)
+    x = fix[0]
+    y = fix[1]
+    fix = np.asarray([x[0],y[0]])
+    
+    fix = np.round(fix/outsz*image.shape) # scale fixation to image size!
     cam = np.eye(3)
     cam[0,2] = fix[0]  # define center x
     cam[1,2] = fix[1] # define center y
@@ -31,7 +40,9 @@ def fixeye(image,fix):
     cam[1,1] = 5.        # define focal length y
          #run
     dst = cv2.undistort(image,cam,distCoeff)
-    dst = dst[~np.all(dst==0,axis=1)]
+    
+    #crop?
+    dst = dst[~np.all(dst==0,axis=0)]
     dst = dst.T
     dst = dst[~np.all(dst==0,axis=1)]
     dst = dst.T
@@ -39,7 +50,7 @@ def fixeye(image,fix):
     dst = scipy.misc.imresize(dst,outsz)
 #    dst = dst - np.mean(dst)
 #    dst = dst / np.std(dst)
-    dst = np.reshape(dst,[outsz[0]*outsz[1]]) #make 1D
+    dst = np.reshape(dst,[1,outsz[0]*outsz[1]]) #make 1D
     return (dst)
 
 def fixembed(fix):
