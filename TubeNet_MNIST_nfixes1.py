@@ -27,10 +27,16 @@ mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 X = tf.placeholder("float", [1,10,200]) #200 inputs
 Y = tf.placeholder("float", [1,10]) #10 output calsses
 
+                  
 # initialize tensorflow model trainable variables
-weights = tf.Variable(tf.random_normal([200, 110])) # 200 input units; 110 outputs
-biases = tf.Variable(tf.random_normal([110])) #110 outputs
-
+topweights = tf.Variable(tf.random_normal([200, 110])) # 200 input units; 110 outputs
+topbiases = tf.Variable(tf.random_normal([110])) #110 outputs
+with tf.variable_scope('rnn'):
+    with tf.variable_scope('basic_lstm_cell'):
+        weights = tf.Variable(tf.random_normal([400, 800]), reuse=True)
+        biases = tf.Variable(tf.random_normal([800, 110]), reuse=True)
+        #NOTE: explicity pass variables around, or use a 'scope' object?
+        
 # initialize hard coded variables                 
 fix = np.zeros([1,10,100]) 
 fix[0,0,55] = 1; # initial fixation location
@@ -41,12 +47,12 @@ memstate = (tf.zeros([1,200]),)*2 # ititial hidden layer c_state and m_state
 FEimg = (np.zeros([1,10,100])) # fix image size
 
 #build the network
-lstm_cell = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, 
-    reuse=tf.get_variable_scope().reuse) 
-lstm_cell_single = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, 
-    reuse=tf.get_variable_scope().reuse) 
+lstm_cell = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True) 
+    #reuse=True) 
+#lstm_cell_single = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, 
+#    reuse=tf.get_variable_scope().reuse) 
 oseq, memstateseq = tf.nn.dynamic_rnn(lstm_cell, X, dtype=tf.float32)
-outseq = tf.matmul(oseq[-1], weights) + biases
+outseq = tf.matmul(oseq[-1], topweights) + topbiases
 
 logits = outseq[0,:10]
 prediction = tf.nn.softmax(logits)
@@ -79,9 +85,9 @@ for iters in range(10000): # iterations
     for n in range(10):
         # get new series of fixations bet feeding forward for n fixations
         FEimg[0,n,:] = fe.fixeye(MNISTimg,fix[0,n,:].reshape([1,100]))
-        osingle, newmemstate = lstm_cell_single(np.concatenate(
+        osingle, newmemstate = lstm_cell(np.concatenate(
                 (FEimg[0,n,:].reshape([1,100]),fix[0,n,:].reshape([1,100])),1), memstate)
-        outsingle = tf.matmul(osingle, weights) + biases
+        outsingle = tf.matmul(osingle, topweights) + topbiases
         memstate = newmemstate
         newfixind = tf.argmax(outsingle[0,10:])
         m=n+1
