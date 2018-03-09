@@ -27,14 +27,14 @@ handle 28 sequences of 28 steps for every sample.
 
 # Training Parameters
 learning_rate = 0.001
-training_steps = 10000
+training_steps = 1000
 batch_size = 128
 display_step = 200
 
 # Network Parameters
-num_input = 100 # MNIST data input (img shape: 28*28); new shape 20*20
+num_input = 200 # MNIST data input (img shape: 28*28); new shape 20*20
 timesteps = 10 # timesteps
-fixseq = np.array([[0.5,0.5], [0.7,0.5], [0.9,0.5], [0.3,0.5], [0.1,0.5], [0.5,0.5,], [0.5,0.7], [0.5,0.9], [0.5,0.3], [0.5,0.1]])
+fixseq = np.array([55, 75, 95, 35, 15, 55, 57, 59, 53, 51])
 
 num_hidden = 400 # hidden layer num of features
 num_classes = 10 # MNIST total classes (0-9 digits)
@@ -87,43 +87,44 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 init = tf.global_variables_initializer()
 batch_x = np.empty([batch_size, timesteps, num_input])
 # Start training
-with tf.Session() as sess:
-
-    # Run the initializer
-    sess.run(init)
-    for step in range(1,training_steps):
-        batch_x_old, batch_y = mnist.train.next_batch(batch_size)
-        # Apply fisheye filter and reshape data
-        for n in range(batch_size):
-            for f in range(np.size(fixseq,0)):
-                img = batch_x_old[n,:]
-                img = img.reshape(28,28)
-                fix = fixseq[f,:]
-                batch_x[n,f,range(num_input)] = fe.fixeye(img,fix)
-        # batch_x = batch_x.reshape((batch_size, timesteps, num_input))
-        # Run optimization op (backprop)
-        sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
-        if step % display_step == 0 or step == 1:
-            # Calculate batch loss and accuracy
-            loss, acc = sess.run([loss_op, accuracy], feed_dict={X: batch_x,
-                                                                 Y: batch_y})
-            print("Step " + str(step) + ", Minibatch Loss= " + \
-                  "{:.4f}".format(loss) + ", Training Accuracy= " + \
-                  "{:.3f}".format(acc))
-
-    print("Optimization Finished!")
-
-    # Calculate accuracy for 128 mnist test images
-    test_len = 128
-    test_data_old = mnist.test.images[:test_len]
-    test_data = np.empty([test_len, timesteps, num_input])
-    for n in range(test_len):
+sess = tf.Session() 
+# Run the initializer
+sess.run(init)
+for step in range(training_steps):
+    batch_x_old, batch_y = mnist.train.next_batch(batch_size)
+    # Apply fisheye filter and reshape data
+    for n in range(batch_size):
         for f in range(np.size(fixseq,0)):
-            img = test_data_old[n,:]
+            img = batch_x_old[n,:]
             img = img.reshape(28,28)
-            fix = fixseq[f,:]
-            test_data[n,f,range(num_input)] = fe.fixeye(img,fix)    
-    
-    test_label = mnist.test.labels[:test_len]
-    print("Testing Accuracy:", \
-        sess.run(accuracy, feed_dict={X: test_data, Y: test_label}))
+            fix = np.zeros([1,100])
+            fix[0,fixseq[f]] = 1;
+            batch_x[n,f,range(num_input)] = np.concatenate((fe.fixeye(img,fix),fix),1)
+    # batch_x = batch_x.reshape((batch_size, timesteps, num_input))
+    # Run optimization op (backprop)
+    sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
+    if step % display_step == 0 or step == 0:
+        # Calculate batch loss and accuracy
+        loss, acc = sess.run([loss_op, accuracy], feed_dict={X: batch_x,
+                                                             Y: batch_y})
+        print("Step " + str(step) + ", Minibatch Loss= " + \
+              "{:.4f}".format(loss) + ", Training Accuracy= " + \
+              "{:.3f}".format(acc))
+
+print("Optimization Finished!")
+
+# Calculate accuracy for 128 mnist test images
+test_len = 128
+test_data_old = mnist.test.images[:test_len]
+test_data = np.empty([test_len, timesteps, num_input])
+for n in range(test_len):
+    for f in range(np.size(fixseq,0)):
+        img = test_data_old[n,:]
+        img = img.reshape(28,28)
+        fix = np.zeros([1,100])
+        fix[0,fixseq[f]] = 1;
+        test_data[n,f,range(num_input)] = np.concatenate((fe.fixeye(img,fix),fix),1)
+
+test_label = mnist.test.labels[:test_len]
+print("Testing Accuracy:", \
+    sess.run(accuracy, feed_dict={X: test_data, Y: test_label}))
