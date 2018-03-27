@@ -13,10 +13,6 @@ units or layers nested in the LSTM hidden layer.
 @author: jordandekraker
 """
 
-nfixes = 5
-iters = 1000
-disp_n_iters = 100
-
 import numpy as np
 import tensorflow as tf
 import fixeye_saccade as fe
@@ -39,6 +35,7 @@ Xpass = np.zeros([1,10,200])
 # initialize tensorflow model trainable variables
 memstate = (tf.Variable(tf.random_normal([1, 200])),)*2 # ititial hidden layer c_state and m_state
 nfi = (tf.Variable(tf.random_normal([1])))
+#memstateseq = (tf.Variable(tf.random_normal([1, 200])),)*2 # ititial hidden layer c_state and m_state
 
 
 topweights = tf.Variable(tf.random_normal([200, 110])) # set to 110 for passing new fixes
@@ -61,8 +58,7 @@ def singleforward(sfin, memstate):
         nfi = tf.argmax(outsingle[0,10:])
     return nfi, newmemstate
 nfi, memstate = singleforward(x, memstate)
-      
-         
+               
 # Define loss and optimizer for MNIST
 loss_MNIST = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
     logits=logits, labels=Y))
@@ -82,22 +78,31 @@ sess.run(init)
 #saver.restore(sess, "/tmp/TubeNet_MNIST_nfixes_singleoptimizer.ckpt")
 
 # Start training
-for i in range(10000): # iterations
+#newfixind = (np.random.rand(10000*10)*100).astype(int)
+o=0
+for iters in range(10000): # iterations
     MNISTimg, MNISTcat = mnist.train.next_batch(1)
     #every fix sequence start in the center
     fix = np.zeros([10,100])
     fix[0,44] = 1
     FEimg[0,:] = fe.fixeye(MNISTimg,fix[0,:]) 
-    for n in range(nfixes):
+    for n in range(10):
         # get new series of fixations by feeding forward for n fixations
         singlein = np.asarray(np.concatenate((FEimg[n,:],fix[n,:]))).reshape([1,200])
         newfixind[n] = np.asarray(sess.run([nfi],feed_dict={x:singlein}))
         fix[n,newfixind[n].astype(int)] = 1 #change 'n' to 'o' for radseq        
         FEimg[n,:] = fe.fixeye(MNISTimg,fix[n,:])
         Xpass[0,n,:] = np.asarray(np.concatenate((FEimg[n,:],fix[n,:]))).reshape([1,200])
+        o=o+1
+    # get current weights and biases
+#    [pweights, pbiases, ptopweights, ptopbiases] = sess.run([weights, biases, topweights, topbiases])
+    # now train using data from those n fixations
     sess.run(train_MNIST, feed_dict={X: Xpass, Y: MNISTcat})
+#        sess.run(train_FIX, feed_dict={X: np.concatenate((FEimg,fix),1),
+#                                       Y: accuracies})
+
     
-    if i % 2000 == 0 or i == 0:
+    if iters % 2000 == 0 or iters == 0:
         # Calculate seq loss and accuracy and see fixations used
         loss, acc_MNIST = sess.run([loss_MNIST,accuracy_MNIST],
                 feed_dict={X: Xpass, Y: MNISTcat})
