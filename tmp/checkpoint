@@ -1,2 +1,0 @@
-model_checkpoint_path: "TubeNet_MNIST_nfixes_singleoptimizer.ckpt"
-all_model_checkpoint_paths: "TubeNet_MNIST_nfixes_singleoptimizer.ckpt"
