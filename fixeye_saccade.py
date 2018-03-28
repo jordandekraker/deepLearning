@@ -49,7 +49,7 @@ def fixeye(image,fix):
     dst = scipy.misc.imresize(dst,outsz)
     dst = dst - np.mean(dst)
     dst = dst / np.std(dst)
-    dst = np.reshape(dst,[1,outsz[0]*outsz[1]]) #make 1D
+    dst = np.reshape(dst,[outsz[0]*outsz[1]]) #make 1D
     return (dst)
 
 
