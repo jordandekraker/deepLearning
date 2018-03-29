@@ -24,7 +24,7 @@ def fixeye(image,fix):
     fix = np.reshape(fix,[np.sqrt(fix.size).astype(int),np.sqrt(fix.size).astype(int)])
     #convert fix to coordinates
     distCoeff = np.array([[0.01], [0.01], [0], [0]])
-    fix = np.where(fix==1)
+    fix = np.where(fix.astype(int)==1)
     x = fix[0]
     y = fix[1]
     fix = np.asarray([x[0],y[0]])
@@ -51,7 +51,6 @@ def fixeye(image,fix):
     dst = dst / np.std(dst)
     dst = np.reshape(dst,[outsz[0]*outsz[1]]) #make 1D
     return (dst)
-
 
 # dst = fixeye(image,fix)
 #fig, ax = plt.subplots()
