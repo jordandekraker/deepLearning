@@ -35,8 +35,9 @@ topweights = tf.Variable(tf.random_normal([200, 110])) # set to 110 for passing 
 topbiases = tf.Variable(tf.random_normal([110])) # set to 110 for passing new fixes
 with tf.variable_scope('rnn', reuse=tf.AUTO_REUSE):
     with tf.variable_scope('basic_lstm_cell'):
-        weights = tf.get_variable('kernel',[400, 800]) # set to 110 for passing new fixes
-        biases = tf.get_variable('bias',[800]) # set to 110 for passing new fixes
+        weights = tf.get_variable('kernel',[400, 800])
+        biases = tf.get_variable('bias',[800]) 
+        # NOTE: these two variables are what tf.contrib.rnn.BasicLSTMCell would create by default
 lstm_cell = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, reuse=True)
 memstate = (tf.Variable(tf.random_normal([1, 200])),)*2 # ititial hidden layer c_state and m_state
 #seqfixwithimg = tf.Variable(tf.random_normal([1, nfixes, 200]))
@@ -52,14 +53,15 @@ def runnfixes(image, memstate):
         FEimg = tf.cast(tf.py_func(fe.fixeye,[image, fix[n,:]],'double'),tf.float32)
         nfixwithimg_list.append(tf.concat((FEimg,fix[n,:]),0))
         nfixwithimg = tf.reshape(nfixwithimg_list,[-1,200])
-        with tf.variable_scope('rnn',reuse=tf.AUTO_REUSE) as scope:
-            scope.reuse_variables()
-            osingle, newmemstate = lstm_cell(tf.reshape(nfixwithimg[n,:], [1,200]), memstate)
-        outsingle = tf.matmul(osingle, topweights) + topbiases
-        memstate = newmemstate
-        newfixind = tf.cast(tf.argmax(outsingle[0,10:]),tf.int64)
-        fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([[newfixind]],[1.0],[100])))
-        fix = tf.reshape(fix_list,[-1,100])
+        if n < nfixes-1:
+            with tf.variable_scope('rnn') as scope:
+                scope.reuse_variables()
+                osingle, newmemstate = lstm_cell(tf.reshape(nfixwithimg[n,:], [1,200]), memstate)
+            outsingle = tf.matmul(osingle, topweights) + topbiases
+            memstate = newmemstate
+            newfixind = tf.cast(tf.argmax(outsingle[0,10:]),tf.int64)
+            fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([[newfixind]],[1.0],[100])))
+            fix = tf.reshape(fix_list,[-1,100])
     return tf.reshape(nfixwithimg,[1,nfixes,200]), fix, memstate
 seqfixwithimg, seqfix, memstate = runnfixes(X, memstate)
 
