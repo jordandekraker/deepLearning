@@ -25,10 +25,9 @@ import fixeye_saccade as fe
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
-# tf Graph input
-sess = tf.Session()
-X = tf.placeholder("float", [1,784]) #200 inputs
-Y = tf.placeholder("float", [1,10]) #10 output calsses
+# tf Graph setup
+X = tf.placeholder("float", [1,784]) #size of an MNIST image
+Y = tf.placeholder("float", [1,10]) #number of possible classes
 
 # initialize tensorflow trainable variables
 topweights = tf.Variable(tf.random_normal([200, 110])) # set to 110 for passing new fixes
@@ -40,7 +39,6 @@ with tf.variable_scope('rnn', reuse=tf.AUTO_REUSE):
         # NOTE: these two variables are what tf.contrib.rnn.BasicLSTMCell would create by default
 lstm_cell = tf.contrib.rnn.BasicLSTMCell(200, state_is_tuple=True, reuse=True)
 memstate = (tf.Variable(tf.random_normal([1, 200])),)*2 # ititial hidden layer c_state and m_state
-#seqfixwithimg = tf.Variable(tf.random_normal([1, nfixes, 200]))
     
 # run individual passes
 def runnfixes(image, memstate):
@@ -62,15 +60,11 @@ def runnfixes(image, memstate):
             newfixind = tf.cast(tf.argmax(outsingle[0,10:]),tf.int64)
             fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([[newfixind]],[1.0],[100])))
             fix = tf.reshape(fix_list,[-1,100])
-    return tf.reshape(nfixwithimg,[1,nfixes,200]), fix, memstate
-seqfixwithimg, seqfix, memstate = runnfixes(X, memstate)
+    return fix, memstate, outsingle
+seqfix, memstate, finalout = runnfixes(X, memstate)
 
-# full sequence pass (for training with unfolding over time)
-oseq, memstateseq = tf.nn.dynamic_rnn(lstm_cell, seqfixwithimg, dtype=tf.float32)
-outseq = tf.matmul(oseq[:,-1,:], topweights) + topbiases # keep only last in time output
-logits = tf.reshape(outseq[0,:10],[1,10]) # MNIST categories
-                   
 # Define loss and optimizer for MNIST
+logits = tf.reshape(finalout[0,:10],[1,10]) # MNIST categories
 loss_MNIST = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
     logits=logits, labels=Y))
 optimizer_MNIST = tf.train.GradientDescentOptimizer(learning_rate=0.001)
@@ -83,8 +77,10 @@ accuracy_MNIST = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # Initialize the variables (i.e. assign their default value)
 init = tf.global_variables_initializer()
+sess = tf.Session()
 sess.run(init)
-#saver.restore(sess, "/tmp/TubeNet_MNIST_nfixes_singleoptimizer.ckpt")
+saver = tf.train.Saver()
+#saver.restore(sess, "tmp/TubeNet_MNIST_nfixes_singleoptimizer.ckpt")
 
 # Start training
 # initialize outer np variables
@@ -93,17 +89,16 @@ accuracyperiter = np.zeros(iters)
 for i in range(iters): # iterations
     MNISTimg, MNISTcat = mnist.train.next_batch(1)
     lossperiter[i], accuracyperiter[i], outerfixes = sess.run([loss_MNIST,accuracy_MNIST,seqfix], feed_dict={X: MNISTimg, Y: MNISTcat})
-    if i % disp_n_iters == 0 or i == 1:
+    if i % disp_n_iters == 0:
         # Calculate seq loss and accuracy and see fixations used
         print("Iteration " + str(i) + ", loss_MNIST= " + \
-              "{:.4f}".format(np.mean(lossperiter[i-disp_n_iters:i])) + ", Accuracy " + \
+              "{:.4f}".format(np.mean(lossperiter[i-disp_n_iters:i])) + ", Accuracy= " + \
               "{:.4f}".format(np.mean(accuracyperiter[i-disp_n_iters:i])) + ", fixation sequence was:")
         print(np.where(outerfixes[:,:]==1)[1])
         
     sess.run(train_MNIST, feed_dict={X: MNISTimg, Y: MNISTcat})
     
 print("Optimization Finished!")
-#saver = tf.train.Saver()
 #saver.save(sess, "tmp/TubeNet_MNIST_nfixes_singleoptimizer.ckpt")
 #train_writer = tf.summary.FileWriter('tmp/TubeNet_MNIST_nfixes_singleoptimizer',sess.graph)
 
@@ -111,16 +106,15 @@ print("Optimization Finished!")
 test_len = 128
 finallossperiter = np.zeros(test_len)
 finalaccuracyperiter = np.zeros(test_len)
-finalfixes = np.zeros([10,test_len])
 for i in range(test_len):
     MNISTimg, MNISTcat = mnist.test.next_batch(1)
-    finallossperiter[i], finalaccuracyperiter[i] = sess.run([loss_MNIST,accuracy_MNIST],
+    finallossperiter[i], finalaccuracyperiter[i], outerfixes = sess.run([loss_MNIST,accuracy_MNIST,seqfix],
         feed_dict={X: MNISTimg, Y: MNISTcat})
              
 print(", loss_MNIST= " + "{:.4f}".format(np.mean(finallossperiter)) \
       + ", Accuracy " + "{:.4f}".format(np.mean(finalaccuracyperiter)) \
       + ", fixation sequence was:")
-#        print(np.where(fix[:,:]==1)[1])
+print(np.where(outerfixes[:,:]==1)[1])
 
 
 # sess.close()
