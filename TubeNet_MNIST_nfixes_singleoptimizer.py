@@ -47,7 +47,7 @@ memdiff_m = [];
 def runnfixes(image,memstate,memdiff_c_list,memdiff_m_list):
     nfixwithimg_list = []
     fix_list = []
-    fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([[44]],[1.0],[100]))) #starting fixation
+    fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([[55]],[1.0],[100]))) #starting fixation
     fix = tf.reshape(fix_list,[-1,100])
     # get new series of fixations by feeding forward for n fixations
     for n in range(nfixes):
