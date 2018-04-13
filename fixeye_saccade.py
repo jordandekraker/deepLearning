@@ -17,18 +17,21 @@ import scipy.misc
 # fisheye filter
 def fixeye(image,fix):
     image = image+0.001 # otherwise can lead to cropping problems in fixeye
-    outsz = [10,10]
+    outsz = [5,5]
+    distCoeff = 0.9
     
     # make sure all inputs are square matrices
-    image = np.reshape(image,[np.sqrt(image.size).astype(int),np.sqrt(image.size).astype(int)])
-    fix = np.reshape(fix,[np.sqrt(fix.size).astype(int),np.sqrt(fix.size).astype(int)])
+    image = np.reshape(image,[np.int(np.sqrt(image.size)),np.int(np.sqrt(image.size))])
+    fres = fix.size
+    fix = np.reshape(fix,[np.int(np.sqrt(fix.size)),np.int(np.sqrt(fix.size))])
     #convert fix to coordinates
-    distCoeff = np.array([[0.01], [0.01], [0], [0]])
-    fix = np.where(fix.astype(int)==1)
+    distCoeff = np.array([[distCoeff], [distCoeff], [0], [0]])
+    fix = fix.astype(int)
+    fix = np.where(fix==1)
     x = fix[0]
     y = fix[1]
     fix = np.asarray([x[0],y[0]])
-    fix = np.round(fix/outsz*image.shape) # scale fixation values to fraction of image size!
+    fix = np.round(fix/fres*image.shape) # scale fixation values to fraction of image size!
     
     # set up fisheye parameters
     cam = np.eye(3)
@@ -37,6 +40,7 @@ def fixeye(image,fix):
     cam[0,0] = 5.        # define focal length x
     cam[1,1] = 5.        # define focal length y
     #run fisheye
+    dst = []
     dst = cv2.undistort(image,cam,distCoeff)
     
     #crop
@@ -50,8 +54,8 @@ def fixeye(image,fix):
     dst = dst - np.mean(dst)
     dst = dst / np.std(dst)
     dst = np.reshape(dst,[outsz[0]*outsz[1]]) #make 1D
-    return (dst)
+    return dst #.astype('float32')
 
 # dst = fixeye(image,fix)
 #fig, ax = plt.subplots()
-#ax.imshow(dst)
+#ax.imshow(image)
