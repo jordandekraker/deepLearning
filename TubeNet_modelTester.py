@@ -13,13 +13,13 @@ import matplotlib.pyplot as plt
 
 nfixes = 5
 iters = 100000 #10k training images seen 10 times each
-tests = 20
+tests = 10
 disp_n_iters = int(iters/10)
 pltwindow = int(iters/100)
 test_len = 1000 #1k test images
 
-scripts = ['TubeNet_MNIST_S1H1M1.py',
-           'TubeNet_MNIST_S1H1M1_shared.py']
+scripts = ['TubeNet_MNIST_S1H1M1_Qlrn-MNIST_randfix.py',
+           'TubeNet_MNIST_S1H1M1_Qlrn-MNIST.py']
 
 allaccperiter = np.zeros([iters,tests,len(scripts)])
 alltestacc = np.zeros([tests,len(scripts)])
@@ -47,8 +47,11 @@ plt.legend()
 axes = plt.gca()
 #axes.set_ylim([0.7,1.0])
 
-plt.bar(range(s+1),np.mean(alltestacc,0))
-plt.errorbar(range(s+1),np.mean(alltestacc,0),np.std(alltestacc,0), linestyle='none')
-plt.xticks(range(s+1), scripts, rotation='vertical')
-axes = plt.gca()
-axes.set_ylim([np.min(alltestacc),np.max(alltestacc)])
+t,p = scipy.stats.ttest_ind(alltestacc[:,0],alltestacc[:,1])
+        
+        
+#plt.bar(range(s+1),np.mean(alltestacc,0))
+#plt.errorbar(range(s+1),np.mean(alltestacc,0),np.std(alltestacc,0), linestyle='none')
+#plt.xticks(range(s+1), scripts, rotation='vertical')
+#axes = plt.gca()
+#axes.set_ylim([np.min(alltestacc),np.max(alltestacc)])

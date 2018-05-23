@@ -56,7 +56,7 @@ M1b = tf.Variable(tf.random_normal([fixshape]))
 e=0.1 #this annoys the crap out of me but has to be here for runnfixes to stop complaining
 
 # define the model
-def runnfixes(image,H1m_old,H1m_diff_RollingAverage):
+def runnfixes(image,Y,H1m_old,H1m_diff_RollingAverage):
     fixind = [55] # initial fixation pt
     fix_list = []
     fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([fixind],[1.0],[fixshape]))) 
@@ -83,19 +83,25 @@ def runnfixes(image,H1m_old,H1m_diff_RollingAverage):
         H2aWithfix = tf.reshape(tf.concat((H2a[0,:],fix[n,]),0),[1,-1])
         M1a = tf.matmul(H2aWithfix, M1w) + M1b # linear activation function?
         
-        # train for fixes that increase memdiff_m (regularize for mean memdiff_m)
+        # train for fixes that increase MNISTout
+        
+        
         Q = tf.reshape(M1a[0,:],[fixshape])
-        Qchange = tf.sparse_tensor_to_dense(tf.SparseTensor([fixind],
-            H1m_diff[n]-H1m_diff_RollingAverage[n],[fixshape]))
+        
+        Qchange = tf.reduce_sum(H2a-tf.reshape(tf.cast(Y,tf.float32),[10]))
+#        Qchange = tf.sparse_tensor_to_dense(tf.SparseTensor([fixind],
+#            H1m_diff[n]-H1m_diff_RollingAverage[n],[fixshape]))
         Qtarget = Q + tf.multiply(Q,Qchange)
         loss_FIX = tf.squared_difference(Qtarget,Q)
         optimizer_FIX = tf.train.GradientDescentOptimizer(learning_rate=0.1) 
         optimizer_FIX.minimize(loss_FIX,var_list=[M1w,M1b])
         
         # sometimes try random fixation (e decreases over time)
-        fixind = [tf.argmax(Q)]
-        if np.random.rand(1) < e:
-            fixind = tf.random_uniform([1],0,fixshape,dtype=tf.int64)
+#        fixind = [tf.argmax(Q)]
+#        if np.random.rand(1) < e:
+#            fixind = tf.random_uniform([1],0,fixshape,dtype=tf.int64)
+        fixind = tf.random_uniform([1],0,fixshape,dtype=tf.int64)
+
         
         #regroup for next fixation
         fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([fixind],[1.0],[fixshape])))
@@ -106,7 +112,7 @@ def runnfixes(image,H1m_old,H1m_diff_RollingAverage):
     H1m_diff_RollingAverage = H1m_diff_RollingAverage*0.99 + H1m_diff+0.01 # running average with momentum
     
     return fix, H1m_diff_RollingAverage, H2a, H1m_diff
-seqfix,H1m_diff_RollingAverage,outMNIST,H1m_diff = runnfixes(X,H1m_old,H1m_diff_RollingAverage)
+seqfix,H1m_diff_RollingAverage,outMNIST,H1m_diff = runnfixes(X,Y,H1m_old,H1m_diff_RollingAverage)
 
 # Define loss and optimizer for MNIST
 logits = tf.reshape(outMNIST[0,:outshape],[1,10]) # MNIST categories
