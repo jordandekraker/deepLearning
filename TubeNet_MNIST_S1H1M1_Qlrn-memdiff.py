@@ -92,8 +92,8 @@ def tubenet(X,Y,e):
         H2aWithfix = tf.reshape(tf.concat((H2a[0,:],fix[n,]),0),[1,-1])# concatenate fix after LSTM layer
         M1a = tf.matmul(H2aWithfix, M1w) + M1b # linear activation function?
         
-        # train for fixes that increase convergence on the RIGHT response
-        Qsignal.append(tf.reduce_sum(H2a-tf.reshape(tf.cast(Y,tf.float32),[10])))
+        # train for fixes that increase the change in memory 
+        Qsignal.append(tf.reduce_mean(tf.square(H1m[1]-H1m_old_c),1)) # mean mem diff
         Q = tf.reshape(M1a[0,:],[fixshape])
         Qchange = Qsignal[n]-RollingAverage[n] #difference from rollingaverage
         Qtarget = Q + tf.multiply(Q,Qchange)

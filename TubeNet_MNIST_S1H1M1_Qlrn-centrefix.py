@@ -38,6 +38,7 @@ except NameError:
 else:
     print('inputs already defined')
 
+
 # tf Graph setup
 X = tf.placeholder("float32", [1,784]) #size of an MNIST image
 Y = tf.placeholder("float64", [1,10]) #number of possible classes
@@ -92,18 +93,7 @@ def tubenet(X,Y,e):
         H2aWithfix = tf.reshape(tf.concat((H2a[0,:],fix[n,]),0),[1,-1])# concatenate fix after LSTM layer
         M1a = tf.matmul(H2aWithfix, M1w) + M1b # linear activation function?
         
-        # train for fixes that increase convergence on the RIGHT response
-        Qsignal.append(tf.reduce_sum(H2a-tf.reshape(tf.cast(Y,tf.float32),[10])))
-        Q = tf.reshape(M1a[0,:],[fixshape])
-        Qchange = Qsignal[n]-RollingAverage[n] #difference from rollingaverage
-        Qtarget = Q + tf.multiply(Q,Qchange)
-        loss_FIX = tf.squared_difference(Qtarget,Q)
-        t2 = optimizer_FIX.minimize(loss_FIX,var_list=[M1w,M1b])
-        
-        # sometimes try random fixation (e decreases over time)
-        fixind = tf.cond(tf.random_uniform([1],0,1,dtype=tf.float64)[0] < e[0], 
-                         lambda: tf.random_uniform([1],0,fixshape,dtype=tf.int64),
-                         lambda: tf.argmax(Q))
+        # don't train Qlrn, leave fixind at 55
         
         #regroup for next fixation
         fix_list.append(tf.sparse_tensor_to_dense(tf.SparseTensor([fixind],[1.0],[fixshape])))
@@ -111,10 +101,6 @@ def tubenet(X,Y,e):
         H1m_old_m.assign(H1m[0])
         H1m_old_c.assign(H1m[1])
         
-    # track memdiff over time to get relative goodness of fixation
-    Qsignal = tf.reshape(Qsignal,[nfixes-1])        
-    RollingAverage.assign(RollingAverage*0.99 + Qsignal*0.01) # running average with momentum
-    
     # Define loss and optimizer for MNIST
     logits = tf.reshape(H2a[0,:outshape],[1,10]) # MNIST categories
     loss_MNIST = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -126,8 +112,8 @@ def tubenet(X,Y,e):
     correct_pred = tf.equal(tf.argmax(prediction,1), tf.argmax(Y,1))
     accuracy_MNIST = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-    return t1,t2,fix,loss_MNIST,accuracy_MNIST
-t1,t2,fix,loss_MNIST,accuracy_MNIST = tubenet(X,Y,e)
+    return t1,fix,loss_MNIST,accuracy_MNIST
+t1,fix,loss_MNIST,accuracy_MNIST = tubenet(X,Y,e)
 
 
 
@@ -147,8 +133,8 @@ meanmdiff = np.zeros([iters,nfixes-1])
 for i in range(iters): # iterations
     ee = 1./((i/50) + 10)
     MNISTimg, MNISTcat = mnist.train.next_batch(1)
-    tt1,tt2,lossperiter[i],accuracyperiter[i],finalfix = sess.run(
-            [t1,t2,loss_MNIST,accuracy_MNIST,fix], 
+    tt1,lossperiter[i],accuracyperiter[i],finalfix = sess.run(
+            [t1,loss_MNIST,accuracy_MNIST,fix], 
             feed_dict={X: MNISTimg, Y: MNISTcat, e: [ee]})
     
     # ongoing display

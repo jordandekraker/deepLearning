@@ -92,8 +92,8 @@ def tubenet(X,Y,e):
         H2aWithfix = tf.reshape(tf.concat((H2a[0,:],fix[n,]),0),[1,-1])# concatenate fix after LSTM layer
         M1a = tf.matmul(H2aWithfix, M1w) + M1b # linear activation function?
         
-        # train for fixes that increase convergence on the RIGHT response
-        Qsignal.append(tf.reduce_sum(H2a-tf.reshape(tf.cast(Y,tf.float32),[10])))
+        # train for fixes that increase convergence on ANY response
+        Qsignal.append(tf.reduce_max(tf.nn.softmax(H2a))) # mean mem diff
         Q = tf.reshape(M1a[0,:],[fixshape])
         Qchange = Qsignal[n]-RollingAverage[n] #difference from rollingaverage
         Qtarget = Q + tf.multiply(Q,Qchange)
@@ -160,7 +160,7 @@ for i in range(iters): # iterations
 #              ", fixation sequence was:")
 #        print(np.where(finalfix[:,:]==1)[1])
 #    
-#print("Optimization Finished!")
+##print("Optimization Finished!")
 ##saver.save(sess, "tmp/TubeNet_MNIST_nfixes_singleoptimizer.ckpt")
 ##train_writer = tf.summary.FileWriter('tmp/TubeNet_MNIST_nfixes_singleoptimizer',sess.graph)
 #
@@ -169,8 +169,8 @@ for i in range(iters): # iterations
 #    meanaccperiter[n] = np.mean(accuracyperiter[n*disp_n_iters : (n+1)*disp_n_iters])
 #plt.plot(meanaccperiter)
 #plt.show()
-#
-#
+
+
 # Calculate accuracy for 128 mnist test images
 finallossperiter = np.zeros(test_len)
 finalaccuracyperiter = np.zeros(test_len)
