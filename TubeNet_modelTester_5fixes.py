@@ -67,10 +67,7 @@ plt.show()
 #t,p = scipy.stats.ttest_ind(alltestacc[:,0],alltestacc[:,1])
 #print(p)
         
-plt.bar(range(s+1),np.mean(alltestacc,0))
-plt.errorbar(range(s+1),np.mean(alltestacc,0),np.std(alltestacc,0), linestyle='none')
+plt.bar(range(s+1),np.mean(alltestacc,0),yerr=np.std(alltestacc,0),color= ['C0','C1','C2','C3','C4'])
 plt.xticks(range(s+1), scripts, rotation='vertical')
-axes = plt.gca()
-axes.set_ylim([np.min(alltestacc),np.max(alltestacc)])
 plt.show()
 
