@@ -27,14 +27,14 @@ fig, ax = plt.subplots()
 ax.imshow(image)
 
 fix = np.zeros([100])
-fix[0] = 1
+fix[55] = 1
 image = fe.fixeye(MNISTimg,fix)
 image = np.reshape(image,[np.int(np.sqrt(image.size)),np.int(np.sqrt(image.size))])
 fig, ax = plt.subplots()
 ax.imshow(image)
 
 fix = np.zeros([1,100])
-fix[0,99] = 1
+fix[0,55] = 1
 image = fe.fixeye(MNISTimg,fix)
 image = np.reshape(image,[np.int(np.sqrt(image.size)),np.int(np.sqrt(image.size))])
 fig, ax = plt.subplots()

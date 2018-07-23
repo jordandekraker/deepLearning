@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Nov 16 11:18:01 2017
-
 @author: jordandekraker
 """
 import cv2
@@ -17,30 +16,32 @@ import scipy.misc
 # fisheye filter
 def fixeye(image,fix):
     image = image+0.001 # otherwise can lead to cropping problems in fixeye
-    outsz = [5,5]
-    distCoeff = 0.9
+    outsz = [32,32]
+    fix = fix.astype(float)
     
-    # make sure all inputs are square matrices
+    # make sure input is square matrices
     image = np.reshape(image,[np.int(np.sqrt(image.size)),np.int(np.sqrt(image.size))])
-    fres = fix.size
-    fix = np.reshape(fix,[np.int(np.sqrt(fix.size)),np.int(np.sqrt(fix.size))])
     #convert fix to coordinates
-    distCoeff = np.array([[distCoeff], [distCoeff], [0], [0]])
-    fix = np.where(fix==np.amax(fix,(0,1)))
-    x = fix[0]
-    y = fix[1]
-    fix = np.asarray([x[0],y[0]])
-    fix = np.round(fix/fres*image.shape) # scale fixation values to fraction of image size!
+    fix[0] = np.round(fix[0]*image.shape[0])
+    fix[1] = np.round(fix[1]*image.shape[1])
+    
+    #set to appropriate range
+    if fix[0] < 0: fix[0] = 0
+    if fix[1] < 0: fix[1] = 0
+    if fix[2] < 0: fix[2] = 0
+    if fix[0] > image.shape[0]-1: fix[0] = image.shape[0]-1
+    if fix[1] > image.shape[1]-1: fix[1] = image.shape[1]-1
+    if fix[2] > 1: fix[0] = 1
+
     
     # set up fisheye parameters
     cam = np.eye(3)
     cam[0,2] = fix[0]  # define center x
-    cam[1,2] = fix[1] # define center y
+    cam[1,2] = fix[1]  # define center y
     cam[0,0] = 5.        # define focal length x
     cam[1,1] = 5.        # define focal length y
     #run fisheye
-    dst = []
-    dst = cv2.undistort(image,cam,distCoeff)
+    dst = cv2.undistort(image,cam,fix[2])
     
     #crop
     dst = dst[~np.all(dst==0,axis=0)]
@@ -57,4 +58,4 @@ def fixeye(image,fix):
 
 # dst = fixeye(image,fix)
 #fig, ax = plt.subplots()
-#ax.imshow(image)
+#ax.imshow(dst)
