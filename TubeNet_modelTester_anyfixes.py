@@ -10,11 +10,11 @@ tests MNISTperformance on single vs dual optimizer models
 
 maxfixes = 50
 minfixes = 5
-iters = 100000 #10k training images seen 10 times each
+iters = 1000 #10k training images seen 10 times each
 tests = 20
 disp_n_iters = int(iters/10)
 pltwindow = int(iters/100)
-test_len = 1000 #1k test images
+test_len = 100 #1k test images
 
 import scipy
 import numpy as np

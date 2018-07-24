@@ -12,14 +12,15 @@ units or layers nested in the LSTM hidden layer.
 
 @author: jordandekraker
 """
+
 try:
     loaded
 except NameError:
     maxfixes = 50
     minfixes = 5
-    iters = 100000
+    iters = 1000
     disp_n_iters = int(iters/100)
-    test_len = 1000
+    test_len = 100
     
     inputshape = 25
     fixshape = 100
@@ -46,14 +47,12 @@ e = tf.placeholder("float64", [1])
 # initialize tensorflow trainable variables
 # S=sensory, H=hippocampal, M=motor
 # w=weights, b=biases, a=activations
-S1 = tf.Variable(tf.random_normal([inputshape+fixshape, 2*(inputshape+fixshape)])) 
+S1w = tf.Variable(tf.random_normal([inputshape+fixshape, 2*(inputshape+fixshape)])) 
 S1b = tf.Variable(tf.random_normal([2*(inputshape+fixshape)])) 
 with tf.variable_scope('rnn', reuse=tf.AUTO_REUSE):
     with tf.variable_scope('basic_lstm_cell'):
         weights = tf.get_variable('kernel',[(2*(inputshape+fixshape)+memshape), (memshape)*4])
-        biases = tf.get_variable('bias',[(memshape)*4]) 
-        # NOTE: these two variables are what tf.contrib.rnn.BasicLSTMCell would create by default
-        
+        biases = tf.get_variable('bias',[(memshape)*4])         
 H1 = tf.contrib.rnn.BasicLSTMCell(memshape, state_is_tuple=True, reuse=True)
 H2w = tf.Variable(tf.random_normal([memshape,outshape])) 
 H2b = tf.Variable(tf.random_normal([outshape])) 
@@ -91,7 +90,7 @@ def tubenet(X,Y,e):
         fixwithimg = tf.reshape(tf.concat((FEimg[0,:],fix_list),0),[1,inputshape+fixshape])
         
         # feed new image and its fix forward
-        S1a = tf.tanh(tf.matmul(fixwithimg, S1) + S1b) 
+        S1a = tf.tanh(tf.matmul(fixwithimg, S1w) + S1b) 
         with tf.variable_scope('rnn') as scope:
             scope.reuse_variables()
             H1a, H1m = H1(S1a, (H1m_old_m,H1m_old_c))
@@ -110,7 +109,7 @@ def tubenet(X,Y,e):
         Q = tf.reshape(M1a[0,:],[fixshape])
         Qchange = Qsignal-RollingAverage[n[0]] #difference from rollingaverage
         Qtarget = Q + tf.multiply(Q,Qchange)
-        loss_FIX = tf.squared_difference(Qtarget,Q)
+        loss_FIX = tf.squared_difference(Q,Qtarget)
         
         # sometimes try random fixation (e decreases over time)
         fixind = tf.cond(tf.random_uniform([1],0,1,dtype=tf.float64)[0] < e[0], 
@@ -119,7 +118,7 @@ def tubenet(X,Y,e):
         
         #regroup for next fixation
         op1 = optimizer_FIX.minimize(loss_FIX,var_list=[M1w,M1b])
-        op2 = RollingAverage[n[0]].assign(RollingAverage[n[0]]*0.99 + Qsignal[0]*0.01)
+        op2 = RollingAverage[n[0]+1].assign(RollingAverage[n[0]]*0.99 + Qsignal[0]*0.01)
         op3 = tf.assign(fix_list,tf.sparse_tensor_to_dense(tf.SparseTensor([fixind],[1.0],[fixshape])))
         op4 = H1m_old_m.assign(H1m[0])
         op5 = H1m_old_c.assign(H1m[1])
@@ -127,6 +126,7 @@ def tubenet(X,Y,e):
         with tf.control_dependencies([op1,op2,op3,op4,op5]):
             n = n+1
         return n,certainty,H2a
+    
     n,certainty,H2a = tf.while_loop(explore_cond,explore,[n,certainty,H2a])
 #        shape_invariants=[tf.TensorShape([None]),tf.TensorShape([1]),tf.TensorShape([None]),tf.TensorShape([1,10])
     

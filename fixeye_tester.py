@@ -7,7 +7,7 @@ Created on Thu Apr 12 17:06:39 2018
 """
 
 import numpy as np
-import fixeye_saccade as fe
+import fixeye_saccade_smiley as fe
 import matplotlib.pyplot as plt
 
 from tensorflow.examples.tutorials.mnist import input_data
